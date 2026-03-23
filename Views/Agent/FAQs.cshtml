@@ -1,0 +1,140 @@
+@model IEnumerable<NextHorizon.Models.FAQ>
+
+@{
+    Layout = "_AgentLayout";
+    ViewData["Title"] = "FAQs";
+}
+
+@section Styles {
+<style>
+    .faq-shell {
+        padding: 30px;
+        font-family: 'Poppins', sans-serif;
+        height: 100vh;
+        overflow-y: auto;
+        background: #f4f6f8;
+    }
+    .faq-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+    }
+    .faq-title { font-size: 20px; font-weight: 700; color: #1a1a2e; }
+    .faq-sub   { font-size: 12px; color: #aaa; margin-top: 2px; }
+    .faq-new-btn {
+        background: #1a1a2e; color: #fff;
+        border: none; border-radius: 8px;
+        padding: 10px 20px; font-family: 'Poppins', sans-serif;
+        font-size: 13px; font-weight: 600;
+        cursor: pointer; text-decoration: none;
+        display: flex; align-items: center; gap: 8px;
+    }
+    .faq-new-btn:hover { opacity: .85; color: #fff; }
+    .faq-table-wrap {
+        background: #fff; border-radius: 12px;
+        border: 1px solid #eee; overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    thead tr { background: #f7f8fa; }
+    th {
+        padding: 13px 18px; text-align: left;
+        font-size: 10.5px; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .6px; color: #aaa;
+        border-bottom: 1px solid #eee;
+    }
+    td {
+        padding: 14px 18px; font-size: 13px; color: #333;
+        border-bottom: 1px solid #f5f5f5; vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafbfc; }
+    .faq-status {
+        display: inline-block; font-size: 10px; font-weight: 700;
+        padding: 3px 10px; border-radius: 5px;
+        text-transform: uppercase; letter-spacing: .4px;
+    }
+    .faq-status.Active   { background: #e8f8ee; color: #27ae60; }
+    .faq-status.Inactive { background: #f0f0f0; color: #999; }
+    .faq-status.Draft    { background: #fff3e0; color: #e67e22; }
+    .faq-status.Archived { background: #fdecea; color: #e74c3c; }
+    .faq-cat {
+        display: inline-block; font-size: 10.5px; font-weight: 600;
+        padding: 3px 10px; border-radius: 5px;
+        background: #f0f0f0; color: #555;
+    }
+    .faq-actions { display: flex; gap: 6px; }
+    .faq-btn {
+        font-family: 'Poppins', sans-serif;
+        font-size: 11px; font-weight: 600;
+        padding: 6px 14px; border-radius: 6px;
+        border: 1px solid #e0e0e0; background: #fff;
+        cursor: pointer; text-decoration: none; color: #333;
+        transition: all .15s;
+    }
+    .faq-btn:hover { background: #1a1a2e; color: #fff; border-color: #1a1a2e; }
+    .faq-btn.del:hover { background: #e74c3c; color: #fff; border-color: #e74c3c; }
+    .faq-empty {
+        text-align: center; padding: 60px 20px;
+        color: #bbb; font-size: 13px;
+    }
+    .faq-empty i { font-size: 40px; margin-bottom: 14px; display: block; }
+</style>
+}
+
+<div class="faq-shell">
+    <div class="faq-header">
+        <div>
+            <div class="faq-title">Frequently Asked Questions</div>
+            <div class="faq-sub">Manage FAQs visible to customers and sellers</div>
+        </div>
+        <a href="/Agent/CreateFAQ" class="faq-new-btn">
+            <i class="fas fa-plus"></i> New FAQ
+        </a>
+    </div>
+
+    <div class="faq-table-wrap">
+        @if (!Model.Any())
+        {
+            <div class="faq-empty">
+                <i class="fas fa-question-circle"></i>
+                No FAQs yet. Click <strong>New FAQ</strong> to add one.
+            </div>
+        }
+        else
+        {
+            <table>
+                <thead>
+                    <tr>
+                        <th>Question</th>
+                        <th>Category</th>
+                        <th>Status</th>
+                        <th>Date Added</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var faq in Model)
+                    {
+                        <tr>
+                            <td style="max-width:320px">@faq.Question</td>
+                            <td><span class="faq-cat">@faq.Category</span></td>
+                            <td><span class="faq-status @faq.Status">@faq.Status</span></td>
+                            <td>@faq.DateAdded.ToString("MMM dd, yyyy")</td>
+                            <td>
+                                <div class="faq-actions">
+                                    <a href="/Agent/EditFAQ/@faq.FaqID" class="faq-btn">Edit</a>
+                                    <form method="post" action="/Agent/DeleteFAQ/@faq.FaqID" style="margin:0">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="faq-btn del"
+                                            onclick="return confirm('Delete this FAQ?')">Delete</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>

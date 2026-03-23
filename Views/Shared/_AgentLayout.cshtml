@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="NEXT HORIZON - Agent Dashboard. Manage FAQs and Customer Support.">
+    <meta name="theme-color" content="#000000">
+    <title>@ViewData["Title"] - NEXT HORIZON Agent</title>
+
+    <!-- Preconnect for Performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <!-- Premium Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    @await RenderSectionAsync("Styles", required: false)
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            width: 100%;
+        }
+
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            color: #212529;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .agent-layout {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            width: 100%;
+        }
+
+        /* ═══════════════════════════════════════════════════ */
+        /* HEADER STYLES */
+        /* ═══════════════════════════════════════════════════ */
+        #main-header {
+            background-color: #ffffff;
+            border-bottom: 1px solid #e9ecef;
+            padding: 0;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .header-inner {
+            width: 100%;
+            padding: 14px 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .header-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            gap: 20px;
+        }
+
+        /* Logo */
+        .logo {
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .logo a {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            line-height: 1;
+        }
+
+        .header-logo-img {
+            max-width: 110px;
+            height: auto;
+            max-height: 42px;
+            object-fit: contain;
+            display: block;
+        }
+
+        /* Fallback text logo */
+        .logo-text {
+            font-size: 22px;
+            font-weight: 900;
+            color: #000;
+            letter-spacing: -1px;
+        }
+
+        /* Header Actions Container */
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            margin-left: auto;
+        }
+
+        /* Icon Buttons */
+        .hdr-icon-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 6px;
+            transition: all 0.15s ease;
+            color: #495057;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            line-height: 1;
+        }
+
+        .hdr-icon-btn:hover {
+            color: #212529;
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+
+        .hdr-icon-btn:active {
+            background-color: rgba(0, 0, 0, 0.08);
+        }
+
+        /* ─────────────────────────────────────────────────── */
+        /* NOTIFICATIONS DROPDOWN */
+        /* ─────────────────────────────────────────────────── */
+        .notif-wrap {
+            position: relative;
+        }
+
+        .notif-dot {
+            position: absolute;
+            top: 3px;
+            right: 3px;
+            width: 7px;
+            height: 7px;
+            background-color: #dc3545;
+            border-radius: 50%;
+            display: none;
+            border: 1px solid #ffffff;
+        }
+
+        .notif-dot.active {
+            display: block;
+        }
+
+        .notif-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            background-color: #ffffff;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            min-width: 340px;
+            display: none;
+            z-index: 1001;
+            max-height: 480px;
+            overflow-y: auto;
+        }
+
+        .notif-dropdown.open {
+            display: block;
+            animation: slideDown 0.2s ease;
+        }
+
+        @@keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .notif-header {
+            padding: 14px 16px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .notif-header span {
+            font-weight: 600;
+            font-size: 13px;
+            color: #212529;
+        }
+
+        .notif-clear-btn {
+            background: none;
+            border: none;
+            color: #6c757d;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 500;
+            transition: color 0.15s ease;
+            white-space: nowrap;
+        }
+
+        .notif-clear-btn:hover {
+            color: #212529;
+        }
+
+        .notif-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .notif-item {
+            padding: 12px 14px;
+            border-bottom: 1px solid #f0f1f3;
+            display: flex;
+            gap: 12px;
+            transition: background-color 0.15s ease;
+            cursor: pointer;
+        }
+
+        .notif-item:last-child {
+            border-bottom: none;
+        }
+
+        .notif-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .notif-item.unread {
+            background-color: #f0f7ff;
+        }
+
+        .notif-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 16px;
+        }
+
+        .notif-icon-order {
+            background-color: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .notif-icon-preorder {
+            background-color: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .notif-icon-promo {
+            background-color: #fff3e0;
+            color: #f57c00;
+        }
+
+        .notif-body {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .notif-text {
+            margin: 0;
+            font-size: 13px;
+            color: #212529;
+            font-weight: 500;
+            line-height: 1.35;
+        }
+
+        .notif-time {
+            font-size: 11px;
+            color: #6c757d;
+            margin-top: 4px;
+            display: block;
+        }
+
+        /* ─────────────────────────────────────────────────── */
+        /* PROFILE DROPDOWN */
+        /* ─────────────────────────────────────────────────── */
+        .profile-dropdown-wrap {
+            position: relative;
+        }
+
+        .profile-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            background-color: #ffffff;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            min-width: 220px;
+            display: none;
+            z-index: 1001;
+        }
+
+        .profile-dropdown.open {
+            display: block;
+            animation: slideDown 0.2s ease;
+        }
+
+        .profile-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 11px 16px;
+            color: #212529;
+            text-decoration: none;
+            cursor: pointer;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+            font-size: 13px;
+            font-weight: 500;
+            transition: background-color 0.15s ease;
+        }
+
+        .profile-dropdown-item:first-child {
+            border-radius: 8px 8px 0 0;
+        }
+
+        .profile-dropdown-item:last-child {
+            border-radius: 0 0 8px 8px;
+        }
+
+        .profile-dropdown-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .profile-dropdown-item.profile-dd-logout {
+            color: #dc3545;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .profile-dropdown-item.profile-dd-logout:hover {
+            background-color: #fff5f5;
+        }
+
+        .profile-dropdown-item i {
+            width: 16px;
+            text-align: center;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            padding: 40px;
+            overflow-y: auto;
+            width: 100%;
+        }
+
+        /* Responsive */
+        @@media (max-width: 768px) {
+            .header-inner {
+                padding: 12px 20px;
+                gap: 12px;
+            }
+
+            .header-logo-img {
+                max-width: 90px;
+                max-height: 36px;
+            }
+
+            .header-actions {
+                gap: 12px;
+            }
+
+            .notif-dropdown {
+                min-width: 300px;
+            }
+
+            .main-content {
+                padding: 20px;
+            }
+        }
+
+        @@media (max-width: 480px) {
+            .header-inner {
+                padding: 10px 15px;
+            }
+
+            .header-logo-img {
+                max-width: 70px;
+                max-height: 30px;
+            }
+
+            .notif-dropdown {
+                min-width: 280px;
+                max-width: calc(100vw - 30px);
+            }
+
+            .profile-dropdown {
+                min-width: 190px;
+                max-width: calc(100vw - 30px);
+            }
+
+            .main-content {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="agent-layout">
+        <!-- ── Main Header ────────────────────────────────── -->
+        <header id="main-header">
+            <div class="header-inner">
+                <div class="header-top">
+                    <!-- Logo -->
+                    <div class="logo">
+                        <a href="/" title="NEXT HORIZON">
+                            <img src="/logo.png" alt="NEXT HORIZON" class="header-logo-img" onerror="this.style.display='none'">
+                            <span class="logo-text" style="display:none;" id="logoFallback">NH</span>
+                        </a>
+                    </div>
+
+                    <!-- Header Actions (Right Side) -->
+                    <div class="header-actions">
+                        <!-- Notifications -->
+                        <div class="notif-wrap" id="notif-wrap">
+                            <button class="hdr-icon-btn notif-btn" id="notif-btn" onclick="toggleNotifDropdown()" aria-label="Notifications" title="Notifications">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                                    <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                                </svg>
+                                <span class="notif-dot active" id="notif-dot"></span>
+                            </button>
+
+                            <!-- Notifications Dropdown -->
+                            <div class="notif-dropdown" id="notif-dropdown">
+                                <div class="notif-header">
+                                    <span>Notifications</span>
+                                    <button class="notif-clear-btn" onclick="clearNotifications()" type="button">Clear all</button>
+                                </div>
+                                <ul class="notif-list" id="notif-list">
+                                    <li class="notif-item unread">
+                                        <div class="notif-icon notif-icon-order">
+                                            <i class="bi bi-bag-check"></i>
+                                        </div>
+                                        <div class="notif-body">
+                                            <p class="notif-text">New FAQ added successfully!</p>
+                                            <span class="notif-time">Just now</span>
+                                        </div>
+                                    </li>
+                                    <li class="notif-item unread">
+                                        <div class="notif-icon notif-icon-preorder">
+                                            <i class="bi bi-clock"></i>
+                                        </div>
+                                        <div class="notif-body">
+                                            <p class="notif-text">You have 3 pending help requests</p>
+                                            <span class="notif-time">15 minutes ago</span>
+                                        </div>
+                                    </li>
+                                    <li class="notif-item">
+                                        <div class="notif-icon notif-icon-promo">
+                                            <i class="bi bi-info-circle"></i>
+                                        </div>
+                                        <div class="notif-body">
+                                            <p class="notif-text">System maintenance scheduled for tonight</p>
+                                            <span class="notif-time">2 hours ago</span>
+                                        </div>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Profile Dropdown -->
+                        <div class="profile-dropdown-wrap" id="profile-wrap">
+                            <button class="hdr-icon-btn" id="profile-btn" onclick="toggleProfileDropdown()" aria-label="Account" aria-expanded="false" title="Account" type="button">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                    <circle cx="12" cy="7" r="4"/>
+                                </svg>
+                            </button>
+
+                            <!-- Profile Dropdown Menu -->
+                            <div class="profile-dropdown" id="profile-dropdown">
+                                <a href="#" class="profile-dropdown-item" onclick="handleAccountProfile(event)">
+                                    <i class="bi bi-person"></i> Account Profile
+                                </a>
+                                <button class="profile-dropdown-item" onclick="handleReport(event)" type="button">
+                                    <i class="bi bi-file-earmark-excel"></i> Report
+                                </button>
+                                <button class="profile-dropdown-item profile-dd-logout" onclick="handleLogout(event)" type="button">
+                                    <i class="bi bi-box-arrow-right"></i> Logout
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            @RenderBody()
+        </main>
+    </div>
+
+    <script src="~/js/app.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+
+    <script>
+        // Show fallback logo if image fails
+        document.addEventListener('DOMContentLoaded', function() {
+            var logoImg = document.querySelector('.header-logo-img');
+            if (logoImg && !logoImg.complete) {
+                logoImg.onerror = function() {
+                    this.style.display = 'none';
+                    document.getElementById('logoFallback').style.display = 'inline';
+                };
+            }
+        });
+
+        // Toggle Profile Dropdown
+        function toggleProfileDropdown() {
+            var dd = document.getElementById('profile-dropdown');
+            var btn = document.getElementById('profile-btn');
+            var isOpen = dd.classList.contains('open');
+
+            // Close notification dropdown
+            var notifDd = document.getElementById('notif-dropdown');
+            if (notifDd) notifDd.classList.remove('open');
+
+            if (!isOpen) {
+                dd.classList.add('open');
+                btn.setAttribute('aria-expanded', 'true');
+            } else {
+                dd.classList.remove('open');
+                btn.setAttribute('aria-expanded', 'false');
+            }
+        }
+
+        // Toggle Notifications Dropdown
+        function toggleNotifDropdown() {
+            var dd = document.getElementById('notif-dropdown');
+            var isOpen = dd.classList.contains('open');
+
+            // Close profile dropdown
+            var profileDd = document.getElementById('profile-dropdown');
+            if (profileDd) profileDd.classList.remove('open');
+
+            if (!isOpen) {
+                dd.classList.add('open');
+            } else {
+                dd.classList.remove('open');
+            }
+        }
+
+        // Clear Notifications
+        function clearNotifications() {
+            var notifList = document.getElementById('notif-list');
+            notifList.innerHTML = '<li style="padding: 24px 16px; text-align: center; color: #6c757d; font-size: 12px;">No notifications</li>';
+            document.getElementById('notif-dot').style.display = 'none';
+        }
+
+        // Handle Account Profile
+        function handleAccountProfile(e) {
+            e.preventDefault();
+            console.log('Account Profile clicked');
+            // window.location.href = '/Agent/AccountProfile';
+        }
+
+        // Handle Report
+        function handleReport(e) {
+            if (e) e.preventDefault();
+            console.log('Report clicked');
+            // window.location.href = '/Agent/GenerateReport';
+        }
+
+        // Handle Logout
+        function handleLogout(e) {
+            if (e) e.preventDefault();
+            console.log('Logout clicked');
+            // window.location.href = '/Account/Logout';
+        }
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', function(e) {
+            var profileWrap = document.getElementById('profile-wrap');
+            var notifWrap = document.getElementById('notif-wrap');
+
+            if (profileWrap && !profileWrap.contains(e.target)) {
+                var dd = document.getElementById('profile-dropdown');
+                var btn = document.getElementById('profile-btn');
+                if (dd) { 
+                    dd.classList.remove('open'); 
+                    if (btn) btn.setAttribute('aria-expanded', 'false'); 
+                }
+            }
+
+            if (notifWrap && !notifWrap.contains(e.target)) {
+                var notifDd = document.getElementById('notif-dropdown');
+                if (notifDd) { notifDd.classList.remove('open'); }
+            }
+        });
+
+        // Close dropdowns on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                var dd = document.getElementById('profile-dropdown');
+                var btn = document.getElementById('profile-btn');
+                var notifDd = document.getElementById('notif-dropdown');
+
+                if (dd) { 
+                    dd.classList.remove('open'); 
+                    if (btn) btn.setAttribute('aria-expanded', 'false'); 
+                }
+                if (notifDd) { notifDd.classList.remove('open'); }
+            }
+        });
+    </script>
+</body>
+</html>

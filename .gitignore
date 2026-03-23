@@ -1,0 +1,28 @@
+# Visual Studio cache/options directory
+.vs/
+
+# Build results
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+
+# NuGet
+*.nupkg
+*.snupkg
+
+# User-specific files
+*.user
+*.userosscache
+*.sln.docstates
+
+# Local history for Visual Studio
+.localhistory/
+
+# Visual Studio Code
+.vscode/
+
+# Rider
+.idea/
+*.sln.iml

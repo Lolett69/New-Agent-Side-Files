@@ -1,0 +1,133 @@
+@model NextHorizon.Models.FAQ
+
+@{
+    Layout = "_AgentLayout";
+    ViewData["Title"] = "Edit FAQ";
+}
+
+@section Styles {
+<style>
+    .faq-form-shell {
+        padding: 30px;
+        font-family: 'Poppins', sans-serif;
+        height: 100vh;
+        overflow-y: auto;
+        background: #f4f6f8;
+    }
+    .faq-form-header {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 24px;
+    }
+    .faq-back-btn {
+        width: 36px; height: 36px;
+        border-radius: 8px;
+        border: 1px solid #e0e0e0;
+        background: #fff;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 13px; color: #555;
+        text-decoration: none;
+        transition: all .15s;
+    }
+    .faq-back-btn:hover { background: #1a1a2e; color: #fff; border-color: #1a1a2e; }
+    .faq-form-title { font-size: 20px; font-weight: 700; color: #1a1a2e; }
+    .faq-form-card {
+        background: #fff;
+        border-radius: 12px;
+        border: 1px solid #eee;
+        padding: 28px;
+        max-width: 700px;
+    }
+    .form-group { margin-bottom: 20px; }
+    label {
+        display: block;
+        font-size: 11px; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .6px;
+        color: #aaa; margin-bottom: 7px;
+    }
+    input[type="text"], textarea, select {
+        width: 100%;
+        font-family: 'Poppins', sans-serif;
+        font-size: 13px; color: #333;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 10px 14px;
+        background: #fafafa;
+        outline: none;
+        transition: border-color .15s;
+        box-sizing: border-box;
+    }
+    input[type="text"]:focus,
+    textarea:focus,
+    select:focus { border-color: #1a1a2e; background: #fff; }
+    textarea { resize: vertical; min-height: 120px; }
+    .faq-submit-btn {
+        font-family: 'Poppins', sans-serif;
+        font-size: 13px; font-weight: 700;
+        padding: 11px 28px;
+        background: #1a1a2e; color: #fff;
+        border: none; border-radius: 8px;
+        cursor: pointer; transition: opacity .15s;
+    }
+    .faq-submit-btn:hover { opacity: .85; }
+    .text-danger { font-size: 11px; color: #e74c3c; margin-top: 4px; }
+</style>
+}
+
+<div class="faq-form-shell">
+    <div class="faq-form-header">
+        <a href="/Agent/FAQs" class="faq-back-btn"><i class="fas fa-arrow-left"></i></a>
+        <div class="faq-form-title">Edit FAQ</div>
+    </div>
+
+    <div class="faq-form-card">
+        <form method="post" action="/Agent/EditFAQ">
+            @Html.AntiForgeryToken()
+
+            <input type="hidden" name="FaqID"     value="@Model.FaqID" />
+            <input type="hidden" name="DateAdded" value="@Model.DateAdded" />
+            <input type="hidden" name="user_id"   value="@Model.user_id" />
+
+            <div class="form-group">
+                <label>Question</label>
+                <input type="text" name="Question" value="@Model.Question" placeholder="Enter the question..." />
+                <span class="text-danger">@Html.ValidationMessage("Question")</span>
+            </div>
+
+            <div class="form-group">
+                <label>Answer</label>
+                <textarea name="Answer" placeholder="Enter the answer...">@Model.Answer</textarea>
+                <span class="text-danger">@Html.ValidationMessage("Answer")</span>
+            </div>
+
+            <div class="form-group">
+                <label>Category</label>
+                <select name="Category">
+                    <option value="">-- Select Category --</option>
+                    <option value="Orders"   selected="@(Model.Category == "Orders"   ? "selected" : null)">Orders</option>
+                    <option value="Payments" selected="@(Model.Category == "Payments" ? "selected" : null)">Payments</option>
+                    <option value="Returns"  selected="@(Model.Category == "Returns"  ? "selected" : null)">Returns</option>
+                    <option value="Shipping" selected="@(Model.Category == "Shipping" ? "selected" : null)">Shipping</option>
+                    <option value="Account"  selected="@(Model.Category == "Account"  ? "selected" : null)">Account</option>
+                    <option value="General"  selected="@(Model.Category == "General"  ? "selected" : null)">General</option>
+                </select>
+                <span class="text-danger">@Html.ValidationMessage("Category")</span>
+            </div>
+
+            <div class="form-group">
+                <label>Status</label>
+                <select name="Status">
+                    <option value="Active"   selected="@(Model.Status == "Active"   ? "selected" : null)">Active</option>
+                    <option value="Draft"    selected="@(Model.Status == "Draft"    ? "selected" : null)">Draft</option>
+                    <option value="Inactive" selected="@(Model.Status == "Inactive" ? "selected" : null)">Inactive</option>
+                    <option value="Archived" selected="@(Model.Status == "Archived" ? "selected" : null)">Archived</option>
+                </select>
+            </div>
+
+            <button type="submit" class="faq-submit-btn">
+                <i class="fas fa-save"></i> Update FAQ
+            </button>
+        </form>
+    </div>
+</div>
