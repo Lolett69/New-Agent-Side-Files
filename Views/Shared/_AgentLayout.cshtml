@@ -70,7 +70,7 @@
         .header-top {
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            justify-content: flex-start;
             width: 100%;
             gap: 20px;
         }
@@ -91,8 +91,9 @@
 
         .header-logo-img {
             min-width: 80px;
+            width: 100px;
             max-width: 110px;
-            height: auto;
+            height: 42px;
             max-height: 42px;
             object-fit: contain;
             display: block;
@@ -435,8 +436,8 @@
                     <!-- Logo -->
                     <div class="logo">
                         <a href="/" title="NEXT HORIZON">
-                            <img src="/images/nh-logo.jpg" alt="NEXT HORIZON" class="header-logo-img">
-                            <span class="logo-text" style="display:none;" id="logoFallback">NH</span>
+                            <img src="/images/nh-logo.jpg" alt="NEXT HORIZON" class="header-logo-img" onerror="document.getElementById('logoFallback').style.display='inline'; this.style.display='none';">
+                            <span class="logo-text" id="logoFallback">NH</span>
                         </a>
                     </div>
 
