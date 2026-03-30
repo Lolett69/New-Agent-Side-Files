@@ -2,7 +2,7 @@
     Layout = "_AgentLayout";
     ViewData["Title"] = "Agent Portal - Help Center";
     var agentName = ViewBag.AgentName as string ?? "Agent";
-    var agentInitials = string.Join("", agentName.Split(' ').Select(w => w[0].ToString())).ToUpper();
+    var agentInitials = string.Join("", agentName.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Select(w => w.Length > 0 ? w[0].ToString() : "")).ToUpper();
     var userId = ViewBag.UserId as int? ?? 0;
 }
 

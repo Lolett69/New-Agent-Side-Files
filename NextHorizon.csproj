@@ -15,6 +15,10 @@
     </PackageReference>
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="BackgroundJobs\" />
+  </ItemGroup>
+
   <Target Name="EnsureNuGetAssetsFile" BeforeTargets="ResolvePackageAssets" Condition="'$(DesignTimeBuild)' != 'true' and !Exists('$(ProjectAssetsFile)')">
     <MSBuild Projects="$(MSBuildProjectFullPath)" Targets="Restore" />
   </Target>
