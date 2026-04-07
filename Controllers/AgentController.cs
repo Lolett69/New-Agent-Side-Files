@@ -101,6 +101,7 @@ namespace NextHorizon.Controllers
                     userType = f.UserType,
                     agentId = f.AgentId,
                     createdAt = f.CreatedAt,
+                    startTime = f.StartTime,
                     endTime = f.EndTime,
                     isAssigned = f.AgentId == userId
                 })
@@ -278,6 +279,12 @@ namespace NextHorizon.Controllers
                 ? "Resolved"
                 : "Active";
 
+            if (string.Equals(conversation.Status, "Resolved", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(normalizedStatus, "Resolved", StringComparison.OrdinalIgnoreCase))
+            {
+                return Json(new { success = false, message = "Resolved conversations cannot be un-resolved." });
+            }
+
             conversation.Status = normalizedStatus;
             conversation.EndTime = normalizedStatus == "Resolved" ? DateTime.Now : null;
             await _context.SaveChangesAsync();
@@ -333,6 +340,7 @@ namespace NextHorizon.Controllers
             await _context.SaveChangesAsync();
             return Json(new { success = true, status = model.Status });
         }
+
     }
 
     public class UpdateAgentStatusRequest

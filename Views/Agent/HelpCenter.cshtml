@@ -390,7 +390,7 @@
                     <button class="hcc-end-btn" id="hccEndBtn" onclick="hcEndConversation()">
                         <i class="fas fa-phone-slash"></i> End Conversation
                     </button>
-                    <button class="hcc-icon-btn" title="Resolve" onclick="hcResolve()">
+                    <button class="hcc-icon-btn" id="hccResolveTopBtn" title="Resolve" onclick="hcResolve()">
                         <i class="fas fa-check"></i>
                     </button>
                 </div>
@@ -417,7 +417,7 @@
                 </div>
                 <div class="hcc-footer-btns">
                     <button class="hcc-faction" onclick="hcAttach()"><i class="fas fa-paperclip"></i> Attach</button>
-                    <button class="hcc-faction resolve" onclick="hcResolve()">
+                    <button class="hcc-faction resolve" id="hccResolveBottomBtn" onclick="hcResolve()">
                         <i class="fas fa-check-circle"></i> Resolve
                     </button>
                 </div>
@@ -507,11 +507,14 @@
     var timerInterval    = null;
     var timerSeconds     = 300;
     var pollInterval     = null;
+    var conversationsRefreshInterval = null;
     var lastParticipantMessageAt = null;
     var inactivityEndingRequested = false;
 
     var MAX_CHAT_SECONDS = 300;
     var INACTIVITY_WARN_SECONDS = 120;
+    var AUTO_REFRESH_MS = 2000;
+    var MESSAGE_POLL_MS = 2000;
 
     const COLS = ['#2980b9','#e67e22','#27ae60','#8e44ad','#e74c3c','#16a085','#d35400','#2c3e50'];
     function ac(n) { let h=0; for(let i=0;i<(n||'').length;i++) h=n.charCodeAt(i)+((h<<5)-h); return COLS[Math.abs(h)%COLS.length]; }
@@ -554,7 +557,7 @@
     }
 
     /* ── LOAD CONVERSATIONS FROM DB ───────────────────────────── */
-    function loadConversations() {
+    function loadConversations(initialLoad) {
         fetch('/Agent/GetConversations')
             .then(function(r) { return r.json(); })
             .then(function(data) {
@@ -562,9 +565,21 @@
                 allConversations = data.conversations || [];
                 updateStats();
                 renderList();
-                // Auto-open first assigned conversation
-                var first = allConversations.find(function(c) { return c.isAssigned; });
-                if (first) openConversation(first.id);
+
+                if (selId) {
+                    var current = allConversations.find(function(c) { return c.id === selId; });
+                    if (current) {
+                        syncSelectedConversationState(current);
+                        loadMessages(selId, true);
+                        return;
+                    }
+                    selId = null;
+                }
+
+                if (initialLoad) {
+                    var first = allConversations.find(function(c) { return c.isAssigned; });
+                    if (first) openConversation(first.id);
+                }
             })
             .catch(function() { showListError('Could not reach server.'); });
     }
@@ -642,6 +657,85 @@
         });
     }
 
+    function syncSelectedConversationState(conv) {
+        var isResolved = statusNorm(conv.status) === 'resolved';
+        var inputRow = document.getElementById('hccInputRow');
+        var input = document.getElementById('hccChatIn');
+        var claimBar = document.getElementById('hccClaimBar');
+        var endBtn = document.getElementById('hccEndBtn');
+        var timerEl = document.getElementById('hccTimerVal');
+
+        document.getElementById('hccMeta').textContent = conv.category + ' · ' + fmtDate(conv.createdAt);
+        document.getElementById('hcdIStatus').textContent = conv.status || '—';
+        applyResolveUiState(isResolved);
+        document.getElementById('hcdUpdateSel').value = isResolved ? 'Resolved' : 'active';
+
+        if (!conv.isAssigned) {
+            if (claimBar) claimBar.classList.add('show');
+            if (inputRow) inputRow.classList.add('ended');
+            if (input) input.placeholder = 'Claim this ticket to reply.';
+            clearInterval(timerInterval);
+            timerInterval = null;
+            if (timerEl) timerEl.textContent = '5:00';
+            convEnded = false;
+            resetInactivityNotices();
+            if (endBtn) { endBtn.disabled = false; endBtn.style.opacity = '1'; }
+            hideInactivityWarning();
+            return;
+        }
+
+        if (claimBar) claimBar.classList.remove('show');
+
+        if (isResolved) {
+            convEnded = true;
+            resetInactivityNotices();
+            clearInterval(timerInterval);
+            timerInterval = null;
+            if (timerEl) timerEl.textContent = '0:00';
+            if (inputRow) inputRow.classList.add('ended');
+            if (input) input.placeholder = 'Conversation is resolved. Unresolve to reply.';
+            if (endBtn) { endBtn.disabled = true; endBtn.style.opacity = '.45'; }
+            hideInactivityWarning();
+            return;
+        }
+
+        convEnded = false;
+        if (inputRow) inputRow.classList.remove('ended');
+        if (input) input.placeholder = 'Type a reply...';
+        if (endBtn) { endBtn.disabled = false; endBtn.style.opacity = '1'; }
+        if (!timerInterval) startTimer();
+    }
+
+    function resetInactivityNotices() {
+        inactivityEndingRequested = false;
+    }
+
+    function applyResolveUiState(isResolved) {
+        var topResolveBtn = document.getElementById('hccResolveTopBtn');
+        var bottomResolveBtn = document.getElementById('hccResolveBottomBtn');
+        var updateSel = document.getElementById('hcdUpdateSel');
+
+        if (topResolveBtn) topResolveBtn.style.display = isResolved ? 'none' : 'flex';
+        if (bottomResolveBtn) bottomResolveBtn.style.display = isResolved ? 'none' : 'flex';
+
+        if (!updateSel) return;
+        var resolvedOpt = updateSel.querySelector('option[value="Resolved"]');
+        var activeOpt = updateSel.querySelector('option[value="active"]');
+        if (!resolvedOpt) return;
+
+        resolvedOpt.hidden = false;
+        resolvedOpt.disabled = false;
+
+        if (activeOpt) {
+            activeOpt.hidden = isResolved;
+            activeOpt.disabled = isResolved;
+        }
+
+        if (isResolved) {
+            updateSel.value = 'Resolved';
+        }
+    }
+
     window.hcSetTab = function(el, tab) {
         document.querySelectorAll('.hcl-tab').forEach(function(t) { t.classList.remove('active'); });
         el.classList.add('active');
@@ -674,6 +768,7 @@
         document.getElementById('hccMeta').textContent = conv.category + ' · ' + fmtDate(conv.createdAt);
 
         var isResolved = statusNorm(conv.status) === 'resolved';
+        applyResolveUiState(isResolved);
 
         // Claim bar
         var claimBar = document.getElementById('hccClaimBar');
@@ -727,7 +822,7 @@
         if (pollInterval) clearInterval(pollInterval);
         pollInterval = setInterval(function() {
             if (selId === id) loadMessages(id, true);
-        }, 5000);
+        }, MESSAGE_POLL_MS);
     }
 
     /* ── LOAD MESSAGES ────────────────────────────────────────── */
@@ -756,6 +851,17 @@
         messages.forEach(function(m) {
             if (existing[m.id]) return;
             var isAgent = m.senderRole === 'Agent';
+            var isSystem = m.senderRole === 'System';
+
+            if (isSystem) {
+                var sys = document.createElement('div');
+                sys.className = 'hcc-system-msg';
+                sys.setAttribute('data-msgid', m.id);
+                sys.textContent = m.messageText || 'System message';
+                body.appendChild(sys);
+                return;
+            }
+
             var w = document.createElement('div');
             w.className = 'hcc-msg' + (isAgent ? ' agent' : '');
             w.setAttribute('data-msgid', m.id);
@@ -773,7 +879,7 @@
 
         var latestParticipantMessage = null;
         messages.forEach(function(m) {
-            if (m.senderRole !== 'Agent') {
+            if (m.senderRole !== 'Agent' && m.senderRole !== 'System') {
                 var dt = m.createdAt ? new Date(m.createdAt) : null;
                 if (dt && !isNaN(dt.getTime())) {
                     if (!latestParticipantMessage || dt > latestParticipantMessage) {
@@ -887,9 +993,12 @@
         .then(function(data) {
             if (data.success) {
                 var conv = allConversations.find(function(c) { return c.id === selId; });
-                if (conv) conv.status = 'Resolved';
+                if (conv) {
+                    conv.status = 'Resolved';
+                    conv.endTime = new Date().toISOString();
+                }
                 document.getElementById('hcdIStatus').textContent = 'Resolved';
-                document.getElementById('hcdUpdateSel').value = 'Resolved';
+                applyResolveUiState(true);
                 appendSystemMsg('✓ Ticket marked as Resolved.');
                 endConv();
                 updateStats();
@@ -918,10 +1027,14 @@
             }
 
             var conv = allConversations.find(function(c) { return c.id === selId; });
-            if (conv) conv.status = data.status;
+            if (conv) {
+                conv.status = data.status;
+                conv.endTime = statusNorm(data.status) === 'resolved' ? new Date().toISOString() : null;
+            }
 
             document.getElementById('hcdIStatus').textContent = data.status;
-            document.getElementById('hcdUpdateSel').value = data.status === 'Resolved' ? 'Resolved' : 'active';
+            applyResolveUiState(statusNorm(data.status) === 'resolved');
+            document.getElementById('hcdUpdateSel').value = statusNorm(data.status) === 'resolved' ? 'Resolved' : 'active';
 
             if (data.status === 'Resolved') {
                 appendSystemMsg('✓ Ticket marked as Resolved.');
@@ -936,7 +1049,7 @@
                 if (pollInterval) clearInterval(pollInterval);
                 pollInterval = setInterval(function() {
                     if (selId) loadMessages(selId, true);
-                }, 5000);
+                }, MESSAGE_POLL_MS);
             }
 
             updateStats();
@@ -951,7 +1064,14 @@
         timerSeconds = MAX_CHAT_SECONDS;
         updateTimerDisplay();
         timerInterval = setInterval(function() {
-            timerSeconds--;
+            if (!lastParticipantMessageAt) {
+                timerSeconds = MAX_CHAT_SECONDS;
+                updateTimerDisplay();
+                return;
+            }
+
+            var elapsed = Math.floor((Date.now() - lastParticipantMessageAt.getTime()) / 1000);
+            timerSeconds = Math.max(0, MAX_CHAT_SECONDS - elapsed);
             updateTimerDisplay();
             if (timerSeconds <= 0) { clearInterval(timerInterval); timerExpired(); }
         }, 1000);
@@ -984,6 +1104,7 @@
         }
 
         var remaining = MAX_CHAT_SECONDS - inactiveSeconds;
+
         if (remaining <= 0) {
             if (!inactivityEndingRequested) {
                 inactivityEndingRequested = true;
@@ -1016,7 +1137,7 @@
         var el = document.getElementById('hccTimerVal');
         if (el) el.textContent = '0:00';
         appendSystemMsg('⏱ Session time expired — conversation ended automatically.');
-        endConv();
+        hcEndConversation();
     }
 
     function endConv() {
@@ -1059,7 +1180,7 @@
                     conv.endTime = new Date().toISOString();
                 }
                 document.getElementById('hcdIStatus').textContent = 'Resolved';
-                document.getElementById('hcdUpdateSel').value = 'Resolved';
+                applyResolveUiState(true);
                 appendSystemMsg('✓ Conversation ended by ' + AGENT_NAME + '.');
                 endConv();
                 updateStats();
@@ -1102,7 +1223,10 @@
 
     /* ── INIT ─────────────────────────────────────────────────── */
     initResizers();
-    loadConversations();
+    loadConversations(true);
+    conversationsRefreshInterval = setInterval(function() {
+        loadConversations(false);
+    }, AUTO_REFRESH_MS);
 
 })();
 </script>
