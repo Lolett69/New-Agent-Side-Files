@@ -396,11 +396,7 @@
                 </div>
             </div>
 
-            <!-- Claim bar for unassigned conversations -->
-            <div class="hcc-claim-bar" id="hccClaimBar">
-                <span><i class="fas fa-exclamation-circle"></i> This ticket is unassigned. Claim it to reply.</span>
-                <button class="hcc-claim-btn" onclick="hcClaim()">Claim Ticket</button>
-            </div>
+            <div class="hcc-claim-bar" id="hccClaimBar" style="display:none"></div>
 
             <div class="hcc-inactive-warn" id="hccInactiveWarn"></div>
 
@@ -508,7 +504,7 @@
     var timerSeconds     = 300;
     var pollInterval     = null;
     var conversationsRefreshInterval = null;
-    var lastParticipantMessageAt = null;
+    var participantLastMessageByConversation = {};
     var inactivityEndingRequested = false;
 
     var MAX_CHAT_SECONDS = 300;
@@ -617,6 +613,13 @@
                 var bSort = b.endTime ? new Date(b.endTime).getTime() : new Date(b.createdAt).getTime();
                 return bSort - aSort;
             }
+
+            if (activeTab === 'unassigned') {
+                var aCreated = new Date(a.createdAt).getTime();
+                var bCreated = new Date(b.createdAt).getTime();
+                return bCreated - aCreated;
+            }
+
             return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
         });
 
@@ -671,15 +674,15 @@
         document.getElementById('hcdUpdateSel').value = isResolved ? 'Resolved' : 'active';
 
         if (!conv.isAssigned) {
-            if (claimBar) claimBar.classList.add('show');
+            if (claimBar) claimBar.classList.remove('show');
             if (inputRow) inputRow.classList.add('ended');
-            if (input) input.placeholder = 'Claim this ticket to reply.';
+            if (input) input.placeholder = 'Unassigned ticket. Waiting for admin assignment.';
             clearInterval(timerInterval);
             timerInterval = null;
             if (timerEl) timerEl.textContent = '5:00';
             convEnded = false;
             resetInactivityNotices();
-            if (endBtn) { endBtn.disabled = false; endBtn.style.opacity = '1'; }
+            if (endBtn) { endBtn.disabled = true; endBtn.style.opacity = '.45'; }
             hideInactivityWarning();
             return;
         }
@@ -773,9 +776,11 @@
         // Claim bar
         var claimBar = document.getElementById('hccClaimBar');
         if (!conv.isAssigned) {
-            claimBar.classList.add('show');
+            claimBar.classList.remove('show');
             document.getElementById('hccInputRow').classList.add('ended');
-            document.getElementById('hccChatIn').placeholder = 'Claim this ticket to reply.';
+            document.getElementById('hccChatIn').placeholder = 'Unassigned ticket. Waiting for admin assignment.';
+            var unassignedEndBtn = document.getElementById('hccEndBtn');
+            if (unassignedEndBtn) { unassignedEndBtn.disabled = true; unassignedEndBtn.style.opacity = '.45'; }
         } else {
             claimBar.classList.remove('show');
             if (isResolved) {
@@ -802,7 +807,6 @@
         // Reset timer and state
         convEnded = isResolved;
         inactivityEndingRequested = false;
-        lastParticipantMessageAt = null;
         document.getElementById('hccEndBtn').disabled = isResolved;
         document.getElementById('hccEndBtn').style.opacity = isResolved ? '.45' : '1';
         hideInactivityWarning();
@@ -890,10 +894,11 @@
         });
 
         if (latestParticipantMessage) {
-            var hadPrevious = lastParticipantMessageAt instanceof Date;
-            var previousMs = hadPrevious ? lastParticipantMessageAt.getTime() : 0;
+            var previous = participantLastMessageByConversation[conversationId];
+            var hadPrevious = previous instanceof Date;
+            var previousMs = hadPrevious ? previous.getTime() : 0;
             var currentMs = latestParticipantMessage.getTime();
-            lastParticipantMessageAt = latestParticipantMessage;
+            participantLastMessageByConversation[conversationId] = latestParticipantMessage;
             if (!hadPrevious || currentMs > previousMs) {
                 inactivityEndingRequested = false;
                 hideInactivityWarning();
@@ -914,7 +919,7 @@
 
         var conv = allConversations.find(function(c) { return c.id === selId; });
         if (conv && !conv.isAssigned) {
-            alert('Please claim this ticket first before sending a message.');
+            alert('This ticket is unassigned. Wait for admin assignment before sending a message.');
             return;
         }
         if (conv && statusNorm(conv.status) === 'resolved') {
@@ -1064,17 +1069,33 @@
         timerSeconds = MAX_CHAT_SECONDS;
         updateTimerDisplay();
         timerInterval = setInterval(function() {
-            if (!lastParticipantMessageAt) {
+            var baseline = getInactivityBaseline();
+            if (!baseline) {
                 timerSeconds = MAX_CHAT_SECONDS;
                 updateTimerDisplay();
                 return;
             }
 
-            var elapsed = Math.floor((Date.now() - lastParticipantMessageAt.getTime()) / 1000);
+            var elapsed = Math.floor((Date.now() - baseline.getTime()) / 1000);
             timerSeconds = Math.max(0, MAX_CHAT_SECONDS - elapsed);
             updateTimerDisplay();
             if (timerSeconds <= 0) { clearInterval(timerInterval); timerExpired(); }
         }, 1000);
+    }
+
+    function getInactivityBaseline() {
+        if (!selId) return null;
+        var conv = allConversations.find(function(c) { return c.id === selId; });
+        if (!conv) return null;
+
+        var start = conv.startTime ? new Date(conv.startTime) : null;
+        if (start && isNaN(start.getTime())) start = null;
+
+        var participant = participantLastMessageByConversation[selId];
+        if (participant && !(participant instanceof Date)) participant = null;
+
+        if (start && participant) return participant > start ? participant : start;
+        return participant || start;
     }
 
     function updateTimerDisplay() {
@@ -1092,12 +1113,18 @@
 
     function checkParticipantInactivity() {
         var conv = allConversations.find(function(c) { return c.id === selId; });
-        if (!selId || convEnded || !lastParticipantMessageAt || !conv || !conv.isAssigned || statusNorm(conv.status) === 'resolved') {
+        if (!selId || convEnded || !conv || !conv.isAssigned || statusNorm(conv.status) === 'resolved') {
             hideInactivityWarning();
             return;
         }
 
-        var inactiveSeconds = Math.floor((Date.now() - lastParticipantMessageAt.getTime()) / 1000);
+        var baseline = getInactivityBaseline();
+        if (!baseline) {
+            hideInactivityWarning();
+            return;
+        }
+
+        var inactiveSeconds = Math.floor((Date.now() - baseline.getTime()) / 1000);
         if (inactiveSeconds < INACTIVITY_WARN_SECONDS) {
             hideInactivityWarning();
             return;

@@ -5,7 +5,7 @@ namespace NextHorizon.Services
 {
     public class SupportInactivityMonitorService : BackgroundService
     {
-        private const string SystemRole = "System";
+        private const string AutoMessageRole = "Support Agent";
         private const int Warn2MinutesSeconds = 120;
         private const int Warn1MinuteSeconds = 240;
         private const int Warn30Seconds = 270;
@@ -59,7 +59,7 @@ namespace NextHorizon.Services
                 var lastParticipantMessageAt = await context.SupportMessages
                     .Where(m => m.ConversationId == conversation.Id
                         && m.SenderRole != "Agent"
-                        && m.SenderRole != SystemRole)
+                        && m.SenderRole != "Support Agent")
                     .OrderByDescending(m => m.CreatedAt)
                     .Select(m => (DateTime?)m.CreatedAt)
                     .FirstOrDefaultAsync(cancellationToken);
@@ -67,12 +67,24 @@ namespace NextHorizon.Services
                 if (!lastParticipantMessageAt.HasValue)
                     continue;
 
-                var inactiveSeconds = (int)(DateTime.Now - lastParticipantMessageAt.Value).TotalSeconds;
+                var baselineTime = lastParticipantMessageAt.Value;
+                if (conversation.StartTime.HasValue && conversation.StartTime.Value > baselineTime)
+                {
+                    baselineTime = conversation.StartTime.Value;
+                }
+
+                var inactiveSeconds = (int)(DateTime.Now - baselineTime).TotalSeconds;
+                if (inactiveSeconds < 0)
+                {
+                    inactiveSeconds = 0;
+                }
+
                 if (inactiveSeconds < Warn2MinutesSeconds)
                     continue;
 
                 var existingSystemMessages = await context.SupportMessages
-                    .Where(m => m.ConversationId == conversation.Id && m.SenderRole == SystemRole)
+                    .Where(m => m.ConversationId == conversation.Id
+                        && (m.SenderRole == AutoMessageRole || m.SenderRole == "Agent"))
                     .Select(m => m.MessageText)
                     .ToListAsync(cancellationToken);
 
@@ -85,8 +97,8 @@ namespace NextHorizon.Services
                         context.SupportMessages.Add(new SupportMessage
                         {
                             ConversationId = conversation.Id,
-                            SenderId = 0,
-                            SenderRole = SystemRole,
+                            SenderId = conversation.AgentId ?? 0,
+                            SenderRole = AutoMessageRole,
                             MessageText = AutoEndMessage,
                             CreatedAt = DateTime.Now
                         });
@@ -104,8 +116,8 @@ namespace NextHorizon.Services
                         context.SupportMessages.Add(new SupportMessage
                         {
                             ConversationId = conversation.Id,
-                            SenderId = 0,
-                            SenderRole = SystemRole,
+                            SenderId = conversation.AgentId ?? 0,
+                            SenderRole = AutoMessageRole,
                             MessageText = Warn30Message,
                             CreatedAt = DateTime.Now
                         });
@@ -121,8 +133,8 @@ namespace NextHorizon.Services
                         context.SupportMessages.Add(new SupportMessage
                         {
                             ConversationId = conversation.Id,
-                            SenderId = 0,
-                            SenderRole = SystemRole,
+                            SenderId = conversation.AgentId ?? 0,
+                            SenderRole = AutoMessageRole,
                             MessageText = Warn1Message,
                             CreatedAt = DateTime.Now
                         });
@@ -136,8 +148,8 @@ namespace NextHorizon.Services
                     context.SupportMessages.Add(new SupportMessage
                     {
                         ConversationId = conversation.Id,
-                        SenderId = 0,
-                        SenderRole = SystemRole,
+                        SenderId = conversation.AgentId ?? 0,
+                        SenderRole = AutoMessageRole,
                         MessageText = Warn2Message,
                         CreatedAt = DateTime.Now
                     });

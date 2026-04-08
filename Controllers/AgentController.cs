@@ -172,23 +172,16 @@ namespace NextHorizon.Controllers
             if (model == null || model.ConversationId <= 0 || string.IsNullOrWhiteSpace(model.MessageText))
                 return BadRequest(new { success = false, message = "Invalid request." });
 
-            // Allow send if assigned to this agent OR unassigned (will auto-claim)
+            // Allow send only if assigned to this agent
             var conversation = await _context.SupportFAQs
                 .FirstOrDefaultAsync(f => f.Id == model.ConversationId &&
-                    (f.AgentId == userId || f.AgentId == null));
+                    f.AgentId == userId);
 
             if (conversation == null)
                 return Json(new { success = false, message = "Conversation not found or not assigned to you." });
 
             if (string.Equals(conversation.Status, "Resolved", StringComparison.OrdinalIgnoreCase))
                 return Json(new { success = false, message = "Conversation is resolved. Unresolve it first to send a message." });
-
-            // Auto-claim if unassigned
-            if (conversation.AgentId == null)
-            {
-                conversation.AgentId = userId;
-                conversation.StartTime = DateTime.Now;
-            }
 
             var message = new SupportMessage
             {
