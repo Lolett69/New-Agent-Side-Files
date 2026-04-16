@@ -10,6 +10,7 @@ namespace NextHorizon.Models
         [Key]
         public int ChatID { get; set; }
         public int? ConversationID { get; set; }
+        public int? AgentID { get; set; }
 
         [Required]
         [MaxLength(100)]

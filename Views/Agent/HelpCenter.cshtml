@@ -78,7 +78,7 @@
     padding: 8px 0; color: #333; width: 100%;
 }
 .hcl-search input::placeholder { color: #bbb; }
-.hcl-list { flex: 1; overflow-y: auto; }
+.hcl-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 6px 12px 18px; }
 .hcl-card {
     padding: 14px 20px; border-bottom: 1px solid #f5f5f5;
     cursor: pointer; display: flex; align-items: flex-start; gap: 12px;
@@ -835,24 +835,25 @@
         list.innerHTML = '';
 
         if (activeTab === 'assigned') {
-            var slotsWrap = document.createElement('div');
-            slotsWrap.className = 'hcl-slots';
             var slots = rows.slice(0, 3);
 
             for (var i = 0; i < 3; i++) {
                 var conv = slots[i];
                 var slot = document.createElement('div');
+                var slotNumber = i + 1;
+                var slotId = 'chatSlot' + slotNumber;
                 var isActive = conv && conv.id === selId;
+                slot.id = slotId;
                 slot.className = 'hcl-slot' + (isActive ? ' active' : '') + (conv ? '' : ' empty');
 
                 if (conv) {
-                    conversationSlotById[conv.id] = i + 1;
+                    conversationSlotById[conv.id] = slotNumber;
                     var color = ac(conv.category || 'ticket');
                     var slotStatus = statusNorm(conv.status) === 'resolved' ? 'Resolved' : 'In Chat';
                     var slotStatusClass = statusNorm(conv.status) === 'resolved' ? 'resolved' : 'active';
                     slot.onclick = (function(id) { return function() { openConversation(id); }; })(conv.id);
                     slot.innerHTML =
-                        '<div class="hcl-slot-title">Chat Slot ' + (i + 1) + '</div>' +
+                        '<div class="hcl-slot-title">Chat Slot ' + slotNumber + '</div>' +
                         '<div class="hcl-slot-body">' +
                             '<div class="hcl-av" style="background:' + color + '">' + ini(conv.category) + '</div>' +
                             '<div class="hcl-body">' +
@@ -867,14 +868,13 @@
                         '<span class="hcl-slot-status ' + slotStatusClass + '">' + slotStatus + '</span>';
                 } else {
                     slot.innerHTML =
-                        '<div class="hcl-slot-title">Chat Slot ' + (i + 1) + '</div>' +
+                        '<div class="hcl-slot-title">Chat Slot ' + slotNumber + '</div>' +
                         '<div class="hcl-slot-meta">No ticket assigned</div>';
                 }
 
-                slotsWrap.appendChild(slot);
+                list.appendChild(slot);
             }
 
-            list.appendChild(slotsWrap);
             return;
         }
 
