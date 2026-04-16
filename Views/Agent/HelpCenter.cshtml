@@ -3,7 +3,7 @@
     ViewData["Title"] = "Agent Portal - Help Center";
     var agentName = ViewBag.AgentName as string ?? "Agent";
     var agentInitials = string.Join("", agentName.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Select(w => w.Length > 0 ? w[0].ToString() : "")).ToUpper();
-    var userId = ViewBag.UserId as int? ?? 0;
+    var userId = ViewBag.UserId != null ? (int)ViewBag.UserId : 0;
 }
 
 @section Styles {
@@ -707,6 +707,8 @@
     var acwInterval = null;
     var acwStartByConversation = {};
     var acwManualStatusByConversation = {};
+    var conversationSlotById = {};
+    var notesSaveTimeout = null;
 
     var MAX_CHAT_SECONDS = 300;
     var INACTIVITY_WARN_SECONDS = 120;
@@ -844,6 +846,7 @@
                 slot.className = 'hcl-slot' + (isActive ? ' active' : '') + (conv ? '' : ' empty');
 
                 if (conv) {
+                    conversationSlotById[conv.id] = i + 1;
                     var color = ac(conv.category || 'ticket');
                     var slotStatus = statusNorm(conv.status) === 'resolved' ? 'Resolved' : 'In Chat';
                     var slotStatusClass = statusNorm(conv.status) === 'resolved' ? 'resolved' : 'active';
@@ -1088,6 +1091,49 @@
             }
         }
         syncStatusIndicatorFromDropdown();
+        if (selId) persistChatStatus('available', selId);
+    }
+
+    function getSelectedChatSlot() {
+        return selId ? (conversationSlotById[selId] || null) : null;
+    }
+
+    function persistChatStatus(status, conversationId) {
+        if (!conversationId) return;
+        fetch('/Agent/UpdateAgentStatus', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                agentName: AGENT_NAME,
+                status: status,
+                conversationId: conversationId,
+                isChatStatus: true,
+                chatSlot: getSelectedChatSlot(),
+                agentUserId: AGENT_USER_ID
+            })
+        })
+        .then(function(r) { return r.json(); })
+        .catch(function(e) { console.error('Chat status update failed:', e); });
+    }
+
+    function persistAcwNotes() {
+        if (!selId) return;
+        var notesEl = document.getElementById('acwNotes');
+        if (!notesEl) return;
+
+        fetch('/Agent/SaveConversationNotes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                conversationId: selId,
+                agentName: AGENT_NAME,
+                chatSlot: getSelectedChatSlot(),
+                notes: notesEl.value || '',
+                agentUserId: AGENT_USER_ID
+            })
+        })
+        .then(function(r) { return r.json(); })
+        .catch(function(e) { console.error('Notes save failed:', e); });
     }
 
     function syncStatusIndicatorFromDropdown() {
@@ -1146,6 +1192,7 @@
          if (conv.isAssigned && !isResolved) {
              if (statusSelect) statusSelect.value = 'inchat';
              if (statusIndicator) statusIndicator.className = 'hcd-status-indicator inchat';
+             persistChatStatus('inchat', conv.id);
          }
 
          // Claim bar
@@ -1351,6 +1398,7 @@
                 if (conv && statusNorm(conv.status) !== 'resolved') {
                     convEnded = false;
                     startTimer();
+                    persistChatStatus('inchat', selId);
                 }
                 renderList();
                 updateStats();
@@ -1380,6 +1428,8 @@
                 document.getElementById('hcdIStatus').textContent = 'Resolved';
                 applyResolveUiState(true);
                 updateAcwState(true, selId);
+                persistChatStatus('acw', selId);
+                persistAcwNotes();
                 appendSystemMsg('✓ Ticket marked as Resolved.');
                 endConv();
                 updateStats();
@@ -1419,10 +1469,13 @@
 
             if (data.status === 'Resolved') {
                 updateAcwState(true, selId);
+                persistChatStatus('acw', selId);
+                persistAcwNotes();
                 appendSystemMsg('✓ Ticket marked as Resolved.');
                 endConv();
             } else {
                 updateAcwState(false, selId);
+                persistChatStatus('inchat', selId);
                 convEnded = false;
                 document.getElementById('hccInputRow').classList.remove('ended');
                 document.getElementById('hccChatIn').placeholder = 'Type a reply...';
@@ -1586,6 +1639,9 @@
                 }
                 document.getElementById('hcdIStatus').textContent = 'Resolved';
                 applyResolveUiState(true);
+                updateAcwState(true, selId);
+                persistChatStatus('acw', selId);
+                persistAcwNotes();
                 appendSystemMsg('✓ Conversation ended by ' + AGENT_NAME + '.');
                 endConv();
                 updateStats();
@@ -1620,13 +1676,28 @@
                 }
             }
         }
+        if (!selId) return;
         fetch('/Agent/UpdateAgentStatus', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ agentName: AGENT_NAME, status: status })
+            body: JSON.stringify({
+                agentName: AGENT_NAME,
+                status: status,
+                conversationId: selId,
+                isChatStatus: true,
+                chatSlot: getSelectedChatSlot(),
+                agentUserId: AGENT_USER_ID
+            })
         })
         .then(function(r) { return r.json(); })
-        .catch(function(e) { console.error('Status update failed:', e); });
+        .then(function(data) {
+            if (!data || !data.success) {
+                alert((data && (data.message || data.detail)) || 'Failed to update chat status.');
+            }
+        })
+        .catch(function() {
+            alert('Could not reach server while updating chat status.');
+        });
     };
 
     fetch('/Agent/GetAgentStatus?agentName=' + encodeURIComponent(AGENT_NAME))
@@ -1659,9 +1730,19 @@
         fetch('/Agent/UpdateAgentStatus', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ agentName: AGENT_NAME, status: status })
+            body: JSON.stringify({ agentName: AGENT_NAME, status: status, isChatStatus: false, agentUserId: AGENT_USER_ID })
         })
         .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data || !data.success) {
+                console.error('Quick status update rejected:', data);
+                return fetch('/Agent/UpdateAgentStatusDirect?status=' + encodeURIComponent(status)
+                    + '&agentUserId=' + encodeURIComponent(AGENT_USER_ID)
+                    + '&agentName=' + encodeURIComponent(AGENT_NAME), { method: 'POST' });
+            }
+            return null;
+        })
+        .then(function(r) { if (r) return r.json(); return null; })
         .catch(function(e) { console.error('Quick status update failed:', e); });
     };
 
@@ -1694,6 +1775,15 @@
 
     /* ── INIT ─────────────────────────────────────────────────── */
     initResizers();
+    var acwNotesEl = document.getElementById('acwNotes');
+    if (acwNotesEl) {
+        acwNotesEl.addEventListener('input', function() {
+            clearTimeout(notesSaveTimeout);
+            notesSaveTimeout = setTimeout(function() {
+                persistAcwNotes();
+            }, 500);
+        });
+    }
     loadConversations(true);
     conversationsRefreshInterval = setInterval(function() {
         loadConversations(false);
